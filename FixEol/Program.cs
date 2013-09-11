@@ -18,7 +18,7 @@ namespace FixEol
             var transform = new EncodingAndEolTransform
                             {
                                 //OutputBomPolicy = EncodingAndEolTransform.BomPolicy.CopyUtf8OrForce
-                                OutputEncoding = Encoding.UTF7
+                                //OutputEncoding = Encoding.Unicode
                             };
 
             try
