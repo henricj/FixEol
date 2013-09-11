@@ -1,18 +1,17 @@
-﻿<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProductVersion>8.0.50727</ProductVersion>
-    <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{7BECB850-389A-44FC-8523-3EF0B2540F07}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Ude</RootNamespace>
-    <AssemblyName>Ude</AssemblyName>
-    <StartupObject>
-    </StartupObject>
+    <AssemblyName>FixEol.Ude</AssemblyName>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
@@ -21,12 +20,9 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <OutputType>Library</OutputType>
-    <AssemblyName>Ude</AssemblyName>
-    <RootNamespace>Ude</RootNamespace>
-    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
-    <CheckForOverflowUnderflow>true</CheckForOverflowUnderflow>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
@@ -34,11 +30,6 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <OutputType>Library</OutputType>
-    <AssemblyName>Ude</AssemblyName>
-    <DebugSymbols>false</DebugSymbols>
-    <RootNamespace>Ude</RootNamespace>
-    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
-    <CheckForOverflowUnderflow>true</CheckForOverflowUnderflow>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />

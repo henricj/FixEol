@@ -38,7 +38,7 @@
 
 using System;
 using System.IO;
-
+using System.Threading.Tasks;
 using Ude.Core;
 
 namespace Ude
@@ -82,6 +82,16 @@ namespace Ude
             
         }
 
+        public async Task FeedAsync(Stream stream)
+        {
+            var buff = new byte[1024];
+            int read;
+            while ((read = await stream.ReadAsync(buff, 0, buff.Length).ConfigureAwait(false)) > 0 && !done)
+            {
+                Feed(buff, 0, read);
+            }
+        }
+
         public void Feed(Stream stream)
         { 
             byte[] buff = new byte[1024];
@@ -110,6 +120,11 @@ namespace Ude
 
         public float Confidence {
             get { return confidence; }
+        }
+
+        public bool BomDetected
+        {
+            get { return gotBom; }
         }
         
         protected override void Report(string charset, float confidence)

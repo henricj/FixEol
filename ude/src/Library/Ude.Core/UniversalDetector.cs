@@ -71,6 +71,7 @@ namespace Ude.Core
         protected CharsetProber[] charsetProbers = new CharsetProber[PROBERS_NUM];
         protected CharsetProber escCharsetProber;
         protected string detectedCharset;
+        protected bool gotBom;
 
         public UniversalDetector(int languageFilter) { 
             this.start = true;
@@ -93,40 +94,41 @@ namespace Ude.Core
             if (start) {
                 start = false;
                 if (len > 3) {
-                    switch (buf[0]) {
+                    switch (buf[offset]) {
                     case 0xEF:
-                        if (0xBB == buf[1] && 0xBF == buf[2])
+                            if (0xBB == buf[offset + 1] && 0xBF == buf[offset + 2])
                             detectedCharset = "UTF-8";
                         break;
                     case 0xFE:
-                        if (0xFF == buf[1] && 0x00 == buf[2] && 0x00 == buf[3])
+                        if (0xFF == buf[offset + 1] && 0x00 == buf[offset + 2] && 0x00 == buf[offset + 3])
                             // FE FF 00 00  UCS-4, unusual octet order BOM (3412)
                             detectedCharset = "X-ISO-10646-UCS-4-3412";
-                        else if (0xFF == buf[1])
+                        else if (0xFF == buf[offset + 1])
                             detectedCharset = "UTF-16BE";
                         break;
                     case 0x00:
-                        if (0x00 == buf[1] && 0xFE == buf[2] && 0xFF == buf[3])
+                        if (0x00 == buf[offset + 1] && 0xFE == buf[offset + 2] && 0xFF == buf[offset + 3])
                             detectedCharset = "UTF-32BE";
-                        else if (0x00 == buf[1] && 0xFF == buf[2] && 0xFE == buf[3])
+                        else if (0x00 == buf[offset + 1] && 0xFF == buf[offset + 2] && 0xFE == buf[offset + 3])
                             // 00 00 FF FE  UCS-4, unusual octet order BOM (2143)
                             detectedCharset = "X-ISO-10646-UCS-4-2143";
                         break;
                     case 0xFF:
-                        if (0xFE == buf[1] && 0x00 == buf[2] && 0x00 == buf[3])
+                        if (0xFE == buf[offset + 1] && 0x00 == buf[offset + 2] && 0x00 == buf[offset + 3])
                             detectedCharset = "UTF-32LE";
-                        else if (0xFE == buf[1])
+                        else if (0xFE == buf[offset + 1])
                             detectedCharset = "UTF-16LE";
                         break;
                     }  // switch
                 }
                 if (detectedCharset != null) {
                     done = true;
+                    gotBom = true;
                     return;
                 }
             }
 
-            for (int i = 0; i < len; i++) {
+            for (int i = offset; i < len; i++) {
                 
                 // other than 0xa0, if every other character is ascii, the page is ascii
                 if ((buf[i] & 0x80) != 0 && buf[i] != 0xA0)  {
@@ -174,7 +176,7 @@ namespace Ude.Core
                     for (int i = 0; i < PROBERS_NUM; i++) {
                         if (charsetProbers[i] != null) {
                             st = charsetProbers[i].HandleData(buf, offset, len);
-                            #if DEBUG                            
+                            #if DEBUG_DUMPSTATUS                            
                             charsetProbers[i].DumpStatus();
                             #endif                        
                             if (st == ProbingState.FoundIt) {
@@ -237,8 +239,9 @@ namespace Ude.Core
         /// Clear internal state of charset detector.
         /// In the original interface this method is protected. 
         /// </summary>
-        public virtual void Reset() 
-        { 
+        public virtual void Reset()
+        {
+            gotBom = false;
             done = false;
             start = true;
             detectedCharset = null;
