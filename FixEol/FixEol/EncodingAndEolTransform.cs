@@ -107,7 +107,7 @@ namespace FixEol
 
         async Task TransformCoreAsync(StreamReader reader, StreamWriter writer)
         {
-            var writerBlock = new ActionBlock<string>(l => writer.WriteLineAsync(l));
+            var writerBlock = new ActionBlock<string>(writer.WriteLineAsync);
 
             for (; ; )
             {

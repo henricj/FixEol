@@ -71,23 +71,22 @@ namespace FixEol
 
             if (cdet.Charset != null)
             {
-                Encoding encoding;
-                if (Encodings.TryGetValue(cdet.Charset, out encoding))
+                if (Encodings.TryGetValue(cdet.Charset, out var encoding))
                 {
                     return new EncodingInformation
-                           {
-                               Encoding = encoding,
-                               BomDetected = cdet.BomDetected
-                           };
+                    {
+                        Encoding = encoding,
+                        BomDetected = cdet.BomDetected
+                    };
                 }
 
                 try
                 {
                     return new EncodingInformation
-                           {
-                               Encoding = Encoding.GetEncoding(cdet.Charset),
-                               BomDetected = cdet.BomDetected
-                           };
+                    {
+                        Encoding = Encoding.GetEncoding(cdet.Charset),
+                        BomDetected = cdet.BomDetected
+                    };
                 }
                 catch (ArgumentException ex)
                 {
@@ -97,7 +96,9 @@ namespace FixEol
                 Console.WriteLine("Unknown encoding for " + cdet.Charset);
             }
             else
+            {
                 Console.WriteLine("Detection failed.");
+            }
 
             return null;
         }
