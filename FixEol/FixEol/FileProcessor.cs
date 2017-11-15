@@ -135,19 +135,23 @@ namespace FixEol
 
             File.Replace(newFile, fullName, backupFileName);
 
-            for (var retry = 0; retry < 5; ++retry)
+            for (var retry = 0; ; ++retry)
             {
+                if (retry > 0)
+                    await Delays.LongDelay(TimeSpan.FromMilliseconds(100 << retry), cancellationToken).ConfigureAwait(false);
+
                 try
                 {
                     File.Delete(backupFileName);
                     break;
                 }
-                catch (IOException)
+                catch (IOException ex)
                 {
-                    Debug.WriteLine("Unable to delete backup file");
-                }
+                    if (retry >= 4)
+                        throw;
 
-                await Task.Delay(100 << retry, cancellationToken).ConfigureAwait(false);
+                    Debug.WriteLine($"Unable to delete backup file {backupFileName}: {ex.Message}");
+                }
             }
         }
 
