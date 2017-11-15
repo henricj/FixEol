@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace FixEol
@@ -90,7 +91,7 @@ namespace FixEol
                     fileInfo.Refresh();
 
                     if (lastWrite == fileInfo.LastWriteTimeUtc && lastLength == fileInfo.Length)
-                        ReplaceFile(fileInfo, newFile, tempDir);
+                        await ReplaceFileAsync(fileInfo, newFile, CancellationToken.None).ConfigureAwait(false);
                 }
                 finally
                 {
@@ -124,37 +125,29 @@ namespace FixEol
             return fileInfo.FullName;
         }
 
-        static void ReplaceFile(FileInfo fileInfo, string newFile, DirectoryInfo tempDir)
+        static async Task ReplaceFileAsync(FileInfo fileInfo, string newFile, CancellationToken cancellationToken)
         {
-            File.SetCreationTimeUtc(newFile, fileInfo.CreationTimeUtc);
-            File.SetLastWriteTimeUtc(newFile, fileInfo.LastWriteTimeUtc);
-            File.SetLastAccessTimeUtc(newFile, fileInfo.LastAccessTimeUtc);
-
             var fullName = fileInfo.FullName;
 
-            var backupFileName = CreateTempFilename(tempDir, fileInfo);
+            var backupFileName = fullName + ".bak";
 
-            File.Move(fullName, backupFileName);
+            File.Delete(backupFileName);
 
-            try
-            {
-                File.Move(newFile, fullName);
-            }
-            catch (IOException)
-            {
-                // Restore the original file to it's original name.
-                File.Move(backupFileName, fullName);
+            File.Replace(newFile, fullName, backupFileName);
 
-                throw;
-            }
+            for (var retry = 0; retry < 5; ++retry)
+            {
+                try
+                {
+                    File.Delete(backupFileName);
+                    break;
+                }
+                catch (IOException)
+                {
+                    Debug.WriteLine("Unable to delete backup file");
+                }
 
-            try
-            {
-                File.Delete(backupFileName);
-            }
-            catch (IOException)
-            {
-                Debug.WriteLine("Unable to delete backup file");
+                await Task.Delay(100 << retry, cancellationToken).ConfigureAwait(false);
             }
         }
 
