@@ -8,16 +8,16 @@ using System.Threading.Tasks;
 
 namespace FixEol
 {
-    public sealed class FileProcessor : IDisposable
+    public sealed class FileProcessor : IAsyncDisposable
     {
-        static readonly EnumerationOptions Options = new EnumerationOptions { IgnoreInaccessible = true, RecurseSubdirectories = true };
-        readonly TempDirManager _tempDirManager = new TempDirManager();
+        static readonly EnumerationOptions Options = new() { IgnoreInaccessible = true, RecurseSubdirectories = true };
+        readonly TempDirManager _tempDirManager = new();
 
         #region IDisposable Members
 
-        public void Dispose()
+        public async ValueTask DisposeAsync()
         {
-            _tempDirManager.Dispose();
+            await _tempDirManager.DisposeAsync().ConfigureAwait(false);
         }
 
         #endregion
@@ -44,7 +44,6 @@ namespace FixEol
                                                 catch (IOException)
                                                 { }
 
-
                                                 // Assume it is a glob...
                                                 try
                                                 {
@@ -53,7 +52,7 @@ namespace FixEol
                                                 catch (IOException)
                                                 { }
 
-                                                return new string[] { };
+                                                return Array.Empty<string>();
                                             })
                                 .Distinct(StringComparer.InvariantCultureIgnoreCase)
                                 .Select(filename => ProcessFileAsync(filename, transform))
@@ -88,14 +87,12 @@ namespace FixEol
 
                 try
                 {
-                    using (var outputStream = new FileStream(newFile, FileMode.CreateNew, FileAccess.Write, FileShare.None,
-                        lastLength > 1024 * 1024 ? 32 * 1024 : 4096, FileOptions.Asynchronous | FileOptions.SequentialScan))
+                    await using (var outputStream = new FileStream(newFile, FileMode.CreateNew, FileAccess.Write, FileShare.None,
+                                     lastLength > 1024 * 1024 ? 32 * 1024 : 4096, FileOptions.Asynchronous | FileOptions.SequentialScan))
                     {
-                        using (var inputStream = await inputStreamTask.ConfigureAwait(false))
-                        {
-                            if (!await transform(inputStream, outputStream).ConfigureAwait(false))
-                                return null;
-                        }
+                        await using var inputStream = await inputStreamTask.ConfigureAwait(false);
+                        if (!await transform(inputStream, outputStream).ConfigureAwait(false))
+                            return null;
                     }
 
                     fileInfo.Refresh();
@@ -122,7 +119,7 @@ namespace FixEol
                                        {
                                            try
                                            {
-                                               (await inputStreamTask.ConfigureAwait(false)).Dispose();
+                                               await using var stream = await inputStreamTask.ConfigureAwait(false);
                                            }
                                            catch (Exception)
                                            {
@@ -172,7 +169,7 @@ namespace FixEol
             if (fileInfo.Length > 512 * 1024)
                 return fileStream;
 
-            using (fileStream)
+            await using (fileStream)
             {
                 var ms = new MemoryStream((int)fileInfo.Length);
 

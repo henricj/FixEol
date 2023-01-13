@@ -8,11 +8,11 @@ using System.Threading.Tasks;
 
 namespace FixEol
 {
-    public sealed class TempDirManager
+    public sealed class TempDirManager : IAsyncDisposable
     {
-        readonly ConcurrentDictionary<string, Task<DirectoryInfo>> _tempDirs = new ConcurrentDictionary<string, Task<DirectoryInfo>>(StringComparer.InvariantCultureIgnoreCase);
+        readonly ConcurrentDictionary<string, Task<DirectoryInfo>> _tempDirs = new(StringComparer.InvariantCultureIgnoreCase);
 
-        public void Dispose()
+        public async ValueTask DisposeAsync()
         {
             var cleanupTasks = new List<Task>(_tempDirs.Count);
 
@@ -70,7 +70,7 @@ namespace FixEol
 
             try
             {
-                Task.WaitAll(cleanupTasks.ToArray());
+                await Task.WhenAll(cleanupTasks.ToArray()).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -124,5 +124,6 @@ namespace FixEol
                 }
             }
         }
+
     }
 }

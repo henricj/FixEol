@@ -13,7 +13,7 @@ var transform = new EncodingAndEolTransform
 
 try
 {
-    using var fileProcessor = new FileProcessor();
+    await using var fileProcessor = new FileProcessor();
 
     var files = await fileProcessor.ProcessFilesAsync(args, transform.TransformFileAsync);
 
