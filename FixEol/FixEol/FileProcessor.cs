@@ -10,6 +10,7 @@ namespace FixEol
 {
     public sealed class FileProcessor : IDisposable
     {
+        static readonly EnumerationOptions Options = new EnumerationOptions { IgnoreInaccessible = true, RecurseSubdirectories = true };
         readonly TempDirManager _tempDirManager = new TempDirManager();
 
         #region IDisposable Members
@@ -39,6 +40,15 @@ namespace FixEol
 
                                                         return new[] { fileInfo.FullName };
                                                     }
+                                                }
+                                                catch (IOException)
+                                                { }
+
+
+                                                // Assume it is a glob...
+                                                try
+                                                {
+                                                    return Directory.EnumerateFiles(".", arg, Options);
                                                 }
                                                 catch (IOException)
                                                 { }

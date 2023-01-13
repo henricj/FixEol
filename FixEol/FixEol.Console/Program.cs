@@ -1,45 +1,26 @@
 ﻿using System;
-using System.Threading.Tasks;
 
-namespace FixEol
+using FixEol;
+
+if (args.Length < 1)
+    args = new[] { Environment.CurrentDirectory };
+
+var transform = new EncodingAndEolTransform
 {
-    static class Program
-    {
-        static void Main(string[] args)
-        {
-            MainAsync(args).GetAwaiter().GetResult();
-        }
+    OutputBomPolicy = EncodingAndEolTransform.BomPolicy.Never
+    //OutputEncoding = Encoding.Unicode
+};
 
-        static async Task MainAsync(string[] args)
-        {
-            if (args.Length < 1)
-            {
-                args = new[]
-                       {
-                           Environment.CurrentDirectory
-                       };
-            }
+try
+{
+    using var fileProcessor = new FileProcessor();
 
-            var transform = new EncodingAndEolTransform
-            {
-                //OutputBomPolicy = EncodingAndEolTransform.BomPolicy.CopyUtf8OrForce
-                //OutputEncoding = Encoding.Unicode
-            };
+    var files = await fileProcessor.ProcessFilesAsync(args, transform.TransformFileAsync);
 
-            try
-            {
-                using (var fileProcessor = new FileProcessor())
-                {
-                    var files = await fileProcessor.ProcessFilesAsync(args, transform.TransformFileAsync);
-
-                    foreach (var file in files)
-                        Console.WriteLine("{0}", file);
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.Message);
-            }
-        }
-    }
+    foreach (var file in files)
+        Console.WriteLine("{0}", file);
+}
+catch (Exception ex)
+{
+    Console.WriteLine(ex.Message);
 }

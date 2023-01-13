@@ -54,29 +54,21 @@ namespace FixEol
 
             inputStream.Seek(0, SeekOrigin.Begin);
 
-            using (var inputHash = SHA256.Create())
+            using var inputHash = SHA256.Create();
+            using var outputHash = SHA256.Create();
+            using (var inputFilter = new CryptoStream(inputStream, inputHash, CryptoStreamMode.Read))
             {
-                using (var outputHash = SHA256.Create())
-                {
-                    using (var inputFilter = new CryptoStream(inputStream, inputHash, CryptoStreamMode.Read))
-                    {
-                        using (var outputFilter = new CryptoStream(outputStream, outputHash, CryptoStreamMode.Write))
-                        {
-                            using (var tr = new StreamReader(inputFilter, encoding.Encoding))
-                            {
-                                var outputEncoding = GetOutputEncoding(encoding);
-                                using (var sw = new StreamWriter(outputFilter, outputEncoding, 4096, true))
-                                {
-                                    await TransformCoreAsync(tr, sw).ConfigureAwait(false);
-                                }
-                            }
-                        }
-                    }
+                using var outputFilter = new CryptoStream(outputStream, outputHash, CryptoStreamMode.Write);
+                using var tr = new StreamReader(inputFilter, encoding.Encoding);
 
-                    // Only return "true" if the files are the same (at least, they have the same SHA-256).
-                    return !inputHash.Hash.SequenceEqual(outputHash.Hash);
-                }
+                var outputEncoding = GetOutputEncoding(encoding);
+
+                using var sw = new StreamWriter(outputFilter, outputEncoding, 4096, true);
+                await TransformCoreAsync(tr, sw).ConfigureAwait(false);
             }
+
+            // Only return "true" if the files are the same (at least, they have the same SHA-256).
+            return !inputHash.Hash.SequenceEqual(outputHash.Hash);
         }
 
         Encoding GetOutputEncoding(EncodingInformation sourceEncodingInformation)
