@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFrameworks>net462;netcoreapp2.0</TargetFrameworks>
+    <TargetFrameworks>net7.0</TargetFrameworks>
     <RootNamespace>FixEol</RootNamespace>
   </PropertyGroup>
 
