@@ -12,8 +12,8 @@ namespace FixEol
     {
         static readonly Dictionary<string, Encoding> Encodings = CreateEncodings();
 
-        public Encoding Encoding { get; private set; }
-        public bool BomDetected { get; private set; }
+        public Encoding Encoding { get; private init; }
+        public bool BomDetected { get; private init; }
 
         static Dictionary<string, Encoding> CreateEncodings()
         {
@@ -63,42 +63,38 @@ namespace FixEol
 
         public static async Task<EncodingInformation> DetectEncodingAsync(Stream stream)
         {
-            var cdet = new CharsetDetector();
+            var charsetDetector = new CharsetDetector();
 
-            await cdet.FeedAsync(stream).ConfigureAwait(false);
+            await charsetDetector.FeedAsync(stream).ConfigureAwait(false);
 
-            cdet.DataEnd();
+            charsetDetector.DataEnd();
 
-            if (cdet.Charset != null)
+            if (charsetDetector.Charset == null)
+                return null;
+
+            if (Encodings.TryGetValue(charsetDetector.Charset, out var encoding))
             {
-                if (Encodings.TryGetValue(cdet.Charset, out var encoding))
+                return new EncodingInformation
                 {
-                    return new EncodingInformation
-                    {
-                        Encoding = encoding,
-                        BomDetected = cdet.BomDetected
-                    };
-                }
-
-                try
-                {
-                    return new EncodingInformation
-                    {
-                        Encoding = Encoding.GetEncoding(cdet.Charset),
-                        BomDetected = cdet.BomDetected
-                    };
-                }
-                catch (ArgumentException ex)
-                {
-                    Debug.WriteLine("Encoding {0} not found: {1}", cdet.Charset, ex.Message);
-                }
-
-                Console.WriteLine("Unknown encoding for " + cdet.Charset);
+                    Encoding = encoding,
+                    BomDetected = charsetDetector.BomDetected
+                };
             }
-            else
+
+            try
             {
-                Console.WriteLine("Detection failed.");
+                return new EncodingInformation
+                {
+                    Encoding = Encoding.GetEncoding(charsetDetector.Charset),
+                    BomDetected = charsetDetector.BomDetected
+                };
             }
+            catch (ArgumentException ex)
+            {
+                Debug.WriteLine("Encoding {0} not found: {1}", charsetDetector.Charset, ex.Message);
+            }
+
+            Console.WriteLine("Unknown encoding for " + charsetDetector.Charset);
 
             return null;
         }

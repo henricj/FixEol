@@ -7,13 +7,14 @@ if (args.Length < 1)
 
 var transform = new EncodingAndEolTransform
 {
-    OutputBomPolicy = EncodingAndEolTransform.BomPolicy.Never
+    OutputBomPolicy = EncodingAndEolTransform.BomPolicy.Never,
+    TrimLines = false
     //OutputEncoding = Encoding.Unicode
 };
 
 try
 {
-    await using var fileProcessor = new FileProcessor();
+    await using var fileProcessor = new FileProcessor { NoChanges = false };
 
     var files = await fileProcessor.ProcessFilesAsync(args, transform.TransformFileAsync);
 

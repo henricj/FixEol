@@ -13,6 +13,8 @@ namespace FixEol
         static readonly EnumerationOptions Options = new() { IgnoreInaccessible = true, RecurseSubdirectories = true };
         readonly TempDirManager _tempDirManager = new();
 
+        public bool NoChanges { get; init; } = false;
+
         #region IDisposable Members
 
         public async ValueTask DisposeAsync()
@@ -22,7 +24,7 @@ namespace FixEol
 
         #endregion
 
-        public async Task<IEnumerable<string>> ProcessFilesAsync(string[] args, Func<Stream, Stream, Task<bool>> transform)
+        public async Task<IEnumerable<string>> ProcessFilesAsync(string[] args, Func<EncodingInformation, Stream, Stream, Task<bool>> transform)
         {
             var fileTasks = args.AsParallel()
                                 .SelectMany(arg =>
@@ -65,7 +67,7 @@ namespace FixEol
                             .ToArray();
         }
 
-        async Task<string> ProcessFileAsync(string filename, Func<Stream, Stream, Task<bool>> transform)
+        async Task<string> ProcessFileAsync(string filename, Func<EncodingInformation, Stream, Stream, Task<bool>> transform)
         {
             var fileInfo = new FileInfo(filename);
 
@@ -75,58 +77,63 @@ namespace FixEol
             var lastWrite = fileInfo.LastWriteTimeUtc;
             var lastLength = fileInfo.Length;
 
-            var tempDirTask = _tempDirManager.GetDirectoryAsync(fileInfo.Directory);
-
-            var inputStreamTask = CreateReadStreamAsync(fileInfo);
-
             try
             {
-                var tempDir = await tempDirTask.ConfigureAwait(false);
+                await using var inputStream = await CreateReadStreamAsync(fileInfo).ConfigureAwait(false);
 
+                var encoding = await EncodingInformation.DetectEncodingAsync(inputStream).ConfigureAwait(false);
+                if (null == encoding)
+                {
+                    Console.WriteLine($"Unable to determine encoding for {fileInfo.FullName}");
+                    return null;
+                }
+
+                inputStream.Seek(0, SeekOrigin.Begin);
+
+                var tempDir = await _tempDirManager.GetDirectoryAsync(fileInfo.Directory).ConfigureAwait(false);
                 var newFile = CreateTempFilename(tempDir, fileInfo);
 
                 try
                 {
-                    await using (var outputStream = new FileStream(newFile, FileMode.CreateNew, FileAccess.Write, FileShare.None,
-                                     lastLength > 1024 * 1024 ? 32 * 1024 : 4096, FileOptions.Asynchronous | FileOptions.SequentialScan))
+                    await using (var outputStream = NoChanges
+                                     ? Stream.Null
+                                     : new FileStream(newFile, FileMode.CreateNew, FileAccess.Write, FileShare.None,
+                                         lastLength > 1024 * 1024 ? 32 * 1024 : 4096,
+                                         FileOptions.Asynchronous | FileOptions.SequentialScan))
                     {
-                        await using var inputStream = await inputStreamTask.ConfigureAwait(false);
-                        if (!await transform(inputStream, outputStream).ConfigureAwait(false))
+                        if (!await transform(encoding, inputStream, outputStream).ConfigureAwait(false))
                             return null;
                     }
 
                     fileInfo.Refresh();
 
                     if (lastWrite == fileInfo.LastWriteTimeUtc && lastLength == fileInfo.Length)
-                        await ReplaceFileAsync(fileInfo, newFile, CancellationToken.None).ConfigureAwait(false);
+                    {
+                        if (NoChanges)
+                            Trace.WriteLine($"Would replace {fileInfo.FullName}");
+                        else
+                            await ReplaceFileAsync(fileInfo, newFile, CancellationToken.None).ConfigureAwait(false);
+                    }
                 }
                 finally
                 {
-                    try
+                    if (!NoChanges)
                     {
-                        if (File.Exists(newFile))
-                            File.Delete(newFile);
-                    }
-                    catch (Exception)
-                    {
-                        Debug.WriteLine("Unable to cleanup {0} for {1}", newFile, fileInfo.FullName);
+                        try
+                        {
+                            if (File.Exists(newFile))
+                                File.Delete(newFile);
+                        }
+                        catch (Exception)
+                        {
+                            Debug.WriteLine($"Unable to cleanup {newFile} for {fileInfo.FullName}");
+                        }
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                var t = Task.Run(async () =>
-                                       {
-                                           try
-                                           {
-                                               await using var stream = await inputStreamTask.ConfigureAwait(false);
-                                           }
-                                           catch (Exception)
-                                           {
-                                               Debug.WriteLine("Input stream cleanup failed");
-                                           }
-                                       });
-                throw;
+                Console.WriteLine($"Unable to process file {fileInfo.FullName}: {ex.Message}");
             }
 
             return fileInfo.FullName;

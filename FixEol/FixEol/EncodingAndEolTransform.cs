@@ -41,29 +41,24 @@ namespace FixEol
         /// <summary>
         ///     Force a particular output encoding.  This takes precedence over all other options.
         /// </summary>
-        public Encoding OutputEncoding { get; set; }
+        public Encoding OutputEncoding { get; init; }
 
-        public BomPolicy OutputBomPolicy { get; set; }
+        public BomPolicy OutputBomPolicy { get; init; }
 
-        public async Task<bool> TransformFileAsync(Stream inputStream, Stream outputStream)
+        public bool TrimLines { get; init; } = false;
+
+        public async Task<bool> TransformFileAsync(EncodingInformation encoding, Stream inputStream, Stream outputStream)
         {
-            var encoding = await EncodingInformation.DetectEncodingAsync(inputStream).ConfigureAwait(false);
-
-            if (null == encoding)
-                throw new Exception("Unknown encoding");
-
-            inputStream.Seek(0, SeekOrigin.Begin);
-
             using var inputHash = SHA256.Create();
             using var outputHash = SHA256.Create();
-            using (var inputFilter = new CryptoStream(inputStream, inputHash, CryptoStreamMode.Read))
+            await using (var inputFilter = new CryptoStream(inputStream, inputHash, CryptoStreamMode.Read))
             {
-                using var outputFilter = new CryptoStream(outputStream, outputHash, CryptoStreamMode.Write);
+                await using var outputFilter = new CryptoStream(outputStream, outputHash, CryptoStreamMode.Write);
                 using var tr = new StreamReader(inputFilter, encoding.Encoding);
 
                 var outputEncoding = GetOutputEncoding(encoding);
 
-                using var sw = new StreamWriter(outputFilter, outputEncoding, 4096, true);
+                await using var sw = new StreamWriter(outputFilter, outputEncoding, 4096, true);
                 await TransformCoreAsync(tr, sw).ConfigureAwait(false);
             }
 
@@ -97,7 +92,7 @@ namespace FixEol
             return Utf8WithBom;
         }
 
-        async Task TransformCoreAsync(StreamReader reader, StreamWriter writer)
+        async Task TransformCoreAsync(TextReader reader, TextWriter writer)
         {
             var writerBlock = new ActionBlock<string>(writer.WriteLineAsync);
 
@@ -110,7 +105,8 @@ namespace FixEol
 
                 line = line.Normalize(NormalizationForm.FormC);
 
-                line = line.TrimEnd();
+                if (TrimLines)
+                    line = line.TrimEnd();
 
                 writerBlock.Post(line);
             }
